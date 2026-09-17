@@ -44,6 +44,17 @@ Variable access levels are bare lines, not per-declaration: **`public:` / `prote
   multipatch thorns, and are **documented nowhere**.
 - There is no `STRING` grid-scalar type — use a `CCTK_CHAR` array with `DISTRIB=CONSTANT`.
 
+> **In Carpet a `SCALAR` or `ARRAY` group exists once per grid hierarchy, not once per
+> refinement level.** `arrdata` is indexed `[group][map]`
+> (`repos/carpet/Carpet/src/variables.hh`), and `Cycle.cc` advances scalars and arrays
+> with a hard-coded reflevel `0` while grid functions get the current `reflevel`. So a
+> grid scalar **cannot hold per-refinement-level state across iterations** — a finer
+> level will overwrite what a coarser one left. It works only while one level's
+> traversal owns it start to finish, which is how `MoL`'s substep counter
+> (`MoL::MoL_Intermediate_Step`, an `OPTIONS: LEVEL` scalar) gets away with it.
+> State that must persist per level between iterations needs your own storage keyed on
+> the aliased `GetRefinementLevel(cctkGH)`.
+
 ### Includes
 
 ```
@@ -93,6 +104,15 @@ Per-parameter modifiers on the declaration line:
   `thorn::param`). Canonical pair: `MoL::MoL_Num_Evolved_Vars` fed by
   `ML_BSSN`'s `ACCUMULATOR-BASE=MethodofLines::MoL_Num_Evolved_Vars`.
 
+Only **`restricted:`** and **`global:`** parameters can be shared. `USES`/`EXTENDS` of
+another thorn's `private:` parameter is a CST error — `Thorn "X" attempted to EXTEND or
+USE non-restricted parameter "P" from implementation "I"`
+(`lib/sbin/ImpParamConsistency.pl`); the bindings bear this out, exposing only
+`ParameterCRestricted<IMPL>.h` and the global struct to consumers. If you need a thorn
+to react to someone else's `private:` parameter, that parameter has to move to
+`restricted:` in its own thorn. Doing so is source-compatible: the parameter keeps its
+`Thorn::name` spelling and existing parfiles are unaffected.
+
 Array-parameter sizes must be compile-time integer literals, not other parameters
 (Fortran needs fixed-size arrays).
 
@@ -120,6 +140,16 @@ ordering goes in `src/make.code.deps` (`using.F90.o: module.F90.o` — note the 
 ## Grid variables in code
 
 Timelevels rotate each step: current level has no suffix, previous are `_p`, `_p_p`, …
+
+> **The rotation is the driver's, and it is unconditional.** Carpet's `CycleTimeLevels`
+> (`repos/carpet/Carpet/src/Cycle.cc`) rotates *every* group that has storage and more
+> than one **active** timelevel, once per iteration. There is no tag, parameter or
+> group attribute to opt out — `Prolongation="None"` and `Checkpoint="no"` do not
+> exempt a group. Consequence: a group's timelevels can only be repurposed as a
+> general-purpose index (rather than as history) if the group has **no storage at the
+> moment the driver cycles**. That is exactly the condition `MoL::ScratchSpace`
+> satisfies — see the storage-lifetime note in
+> [schedule-and-presync.md](schedule-and-presync.md#storage-traps).
 
 C data is laid out Fortran-style (first index fastest). Index with
 `CCTK_GFINDEX3D(cctkGH,i,j,k)` (also 1D/2D/4D, and `CCTK_VECTGFINDEX*D(...,n)`), or use

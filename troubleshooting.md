@@ -17,6 +17,8 @@ Ordered by phase. For the full ExternalLibraries/GPU cases see
 | Configuration name rejected | Ends in a reserved suffix (`-build`, `-clean`, `-config`, `-delete`, …) | Rename |
 | `Duplicate checkouts: ...` (GetComponents) | Same `Arr/Thorn` in `!CHECKOUT` and as an enabled body line | Keep only one form |
 | Cross-consistency error about restricted parameter defaults | Two thorns share an implementation but disagree on a default | Make the defaults match |
+| `CST error ... Missing thorn Arr/Thorn` right after editing an *unrelated* CCL file | `configs/<cfg>/ThornList` names thorns that are not checked out. It is only read when the CST reruns, so a wrong list sits latent until any CCL edit triggers one — commonly it has been overwritten with a CRL/GetComponents file | Fix `configs/<cfg>/ThornList` itself. `THORNLIST=` is read only by the `%-config` rules (`Makefile`), which *copy* it to `configs/<cfg>/ThornList`; a plain `gmake <cfg>` ignores it, so it cannot be used to work around this. See [build-system.md](build-system.md) |
+| `Thorn "X" attempted to EXTEND or USE non-restricted parameter "P" from implementation "I"` | Only `restricted:`/`global:` parameters are shareable | Move the parameter to `restricted:` in its own thorn — source-compatible, parfiles unaffected. See [thorn-anatomy.md](thorn-anatomy.md) |
 
 ## Compile
 
@@ -27,6 +29,7 @@ Ordered by phase. For the full ExternalLibraries/GPU cases see
 | Fortran: parameters have silently wrong values, no error | Missing `DECLARE_CCTK_PARAMETERS` | Add it |
 | CST mangles braces around commented-out code | `#if 0 ... #endif` wrapping a `DECLARE_CCTK_*` breaks the CST's automatic closing-brace insertion | Keep commented-out code in matched `{}` |
 | Undefined reference / link-order error | Almost always a missing `inherits:` in `interface.ccl` | Add the inherit |
+| `'<param>' undeclared` in `configs/<cfg>/bindings/Schedule/Schedule<Thorn>.c` | A `schedule.ccl` `if (...)` tests a parameter the thorn cannot see | Add `shares: <impl>` + `USES <TYPE> <param>` to `param.ccl` |
 | Aliased-function link error | Binding generation | Inspect `configs/<cfg>/bindings/Functions` |
 | Stale or renamed include still being found | Cached dependencies | `gmake <cfg>-cleandeps` |
 | Bogus "unresolved text symbol" for a scheduled function | The compiler OOMed and silently produced an empty object file | `touch` the source and rebuild, possibly at `OPTIMISE=no` |
@@ -57,6 +60,7 @@ Ordered by phase. For the full ExternalLibraries/GPU cases see
 | Want to stop at a coordinate time rather than an iteration | | `Cactus::terminate="time"` + `Cactus::cctk_final_time` instead of `cctk_itlast` |
 | Two `CCTK_ANALYSIS` routines trigger on the same variable and one never runs | By design — the first scheduled one wins | Give them different triggers |
 | Need the exact source a binary was built from | Not recoverable | Activate the `Formaline` thorn next time |
+| A measured convergence order is noisy, saturates, or reports exactly 0 error | `IOBasic::outInfo_*` prints ~6 significant figures — far too few to resolve a fourth-order error, and it quantises small differences to zero | Print the quantity from your own thorn at full precision (`%.17g`), or output via `CarpetIOScalar`/`IOASCII` |
 
 ## Performance (not a failure, but usually a surprise)
 

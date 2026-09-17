@@ -313,6 +313,24 @@ being read?). You keep the cheap correctness net and drop the expensive one.
   parfile and its pointer is silently NULL, regardless of READS/WRITES.
 - You cannot sync individual group members or non-current timelevels — only a whole
   group's current timelevel.
+- **Declared timelevels and active timelevels are different numbers.**
+  `CCTK_DeclaredTimeLevelsGI` is the `TIMELEVELS=` maximum from `interface.ccl`;
+  `CCTK_ActiveTimeLevelsGI`/`VI` is how many currently have storage. `STORAGE: group[n]`
+  sets the latter, and so does `CCTK_GroupStorageIncrease`/`Decrease` at runtime — which
+  is a real, supported way to size a group from a thorn, under any driver except CarpetX
+  (above). Everything that scales with timelevel count, including the driver's rotation,
+  keys off the *active* number.
+- **Storage requested inside a scheduled block is scoped to that block**, so a group can
+  exist for part of an evolution step and not the rest. `MoL::ScratchSpace` is the
+  canonical case: `MoL_AllocateScratchSpace` runs in `MoL_StartStep` and
+  `MoL_FreeScratchSpace` at the end of `MoL_Evolution`
+  (`arrangements/CactusNumerical/MoL/schedule.ccl`), so MoL scratch **does not survive a
+  timestep** and cannot carry state from one step to the next. That same lifetime is
+  what makes MoL's trick of indexing scratch by *timelevel* safe — see the rotation note
+  in [thorn-anatomy.md](thorn-anatomy.md#grid-variables-in-code).
+- A parameter used in a `schedule.ccl` `if (...)` must be one the thorn can see: its own,
+  or another thorn's via `shares:` + `USES` in `param.ccl`. Otherwise the generated
+  `bindings/Schedule/Schedule<Thorn>.c` fails to compile with `'<param>' undeclared`.
 
 ---
 
