@@ -129,3 +129,6 @@ Rules for editing it:
   `cactus_<cfg> -S` for the schedule tree, `@schedule_bins` for valid bin names).
 - Anything that is true only of one machine, cluster, or configuration does **not**
   belong here. This describes Cactus, not a site.
+
+`README.md` is the human-facing introduction to this directory; you do not need it.
+Licensed LGPL v2, same as the Cactus Flesh — see [COPYING](COPYING).
