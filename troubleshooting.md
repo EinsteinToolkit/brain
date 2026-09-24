@@ -24,6 +24,11 @@ Ordered by phase. For the full ExternalLibraries/GPU cases see
 
 | Symptom | Cause | Fix |
 |---|---|---|
+| `nvcc fatal : Unknown option '-fopenmp'` compiling an AMReX-consuming thorn | A host-only flag reached `$(CUCC)`; `CPPFLAGS` is prepended to every compile, and `CXXFLAGS` is replaced by `CUCCFLAGS` for those thorns | Drop it from `CPP_OPENMP_FLAGS`; put `-Xcompiler -fopenmp` in `CUCCFLAGS` |
+| Fortran `#ifdef _OPENMP` blocks behave as if absent, build succeeds | FPP is a separate pass and `-fopenmp` does not define `_OPENMP` for it | Set `FPP_OPENMP_FLAGS = -D_OPENMP` |
+| `undefined reference to GOMP_parallel` at the final link | The optionlist sets `LD`, so configure did not inherit `LD_OPENMP_FLAGS` from `CXX_OPENMP_FLAGS` | Set `LD_OPENMP_FLAGS` explicitly |
+| A debug build still runs at full speed / shows optimised backtraces | Optimisation hardcoded in the base `CFLAGS`/`CXXFLAGS`; the DEBUG block is applied before OPTIMISE | Move `-O2` into `*_OPTIMISE_FLAGS` |
+| `mv: cannot stat '.../thorn-<X>.files.tmp'` | Several `make`s running in one configuration — Formaline's rule writes a fixed `$@.tmp` then renames, so concurrent makes race | Run one make; parallelise with `-j`/`TJOBS`, not by launching N makes (e.g. `srun -n N ... make`) |
 | `DECLARE_CCTK_PARAMETERS` / `DECLARE_CCTK_ARGUMENTS` undefined | Missing `#include "cctk_Parameters.h"` / `"cctk.h"`+`"cctk_Arguments.h"` | Add them |
 | Fortran: "dummy argument CCTK_DIM has not been given a type" | Same missing include | Add them |
 | Fortran: parameters have silently wrong values, no error | Missing `DECLARE_CCTK_PARAMETERS` | Add it |

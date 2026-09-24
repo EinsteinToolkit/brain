@@ -49,6 +49,12 @@ gmake <cfg>-config THORNLIST=/abs/path/compile.th options=/abs/path/optionlist.c
 **Configuration names must not end in a reserved suffix** (`-build`, `-clean`, `-config`,
 `-delete`, …).
 
+`gmake <newcfg> options=... THORNLIST=... PROMPT=no` does configure *and* build in one
+command: the `%::` catch-all in the top-level `Makefile` creates the configuration, then
+builds it **only if `PROMPT=no`**. With the default `PROMPT=yes` it configures and stops,
+printing `Use gmake <newcfg> to build the configuration` — which looks like a silent
+failure if you expected an executable.
+
 ### 2. CST
 
 `make.configuration:214` runs:
@@ -164,14 +170,83 @@ Plain `KEY = value` text with `#` comments, passed as `options=`. Common keys:
 |---|---|
 | `CC`, `CXX`, `F90`, `LD` | Compilers and linker |
 | `CFLAGS`, `CXXFLAGS`, `F90FLAGS`, `LDFLAGS`, `LIBS`, `LIBDIRS`, `SYS_INC_DIRS` | Flags, libs, dirs |
-| `CPPFLAGS` | Preprocessor (e.g. `-DSIMD_DISABLE`) |
-| `OPENMP`, `*_OPENMP_FLAGS` | Host OpenMP |
-| `DEBUG`, `OPTIMISE`, `PROFILE` | **Configure-time only** |
+| `CPPFLAGS`, `FPPFLAGS` | Preprocessor flags (e.g. `-DSIMD_DISABLE`) |
+| `DEBUG`, `OPTIMISE`, `PROFILE`, `OPENMP`, `WARN` | Build modes — **configure-time only** |
+| `VECTORISE`, `VECTORISE_ALIGNED_ARRAYS`, `VECTORISE_INLINE` | Carpet's vectorisation — a different knob from CarpetX's `-DSIMD_DISABLE` |
 | `<LIB>_DIR` (`HDF5_DIR`, `AMREX_DIR`, `MPI_DIR`, …) | ExternalLibraries detect roots; `BUILD` forces the bundled build |
 | `DISABLE_INT16`, `DISABLE_REAL16` | Often required by CUDA stacks |
+| `ac_cv_*` | autoconf cache variables — see below |
 
-**Editing the optionlist file does nothing to an existing configuration.** To apply it:
-`gmake <cfg>-config options=<file> THORNLIST=<file>`, or `gmake <cfg>-delete` first.
+### How the build modes compose
+
+`config-data/make.config.defn` ends with one block per mode:
+
+```make
+ifeq ($(strip $(CCTK_OPTIMISE_MODE)),yes)
+  CPPFLAGS  += $(CPP_OPTIMISE_FLAGS)
+  CFLAGS    += $(C_OPTIMISE_FLAGS)
+  CXXFLAGS  += $(CXX_OPTIMISE_FLAGS)
+  CUCCFLAGS += $(CUCC_OPTIMISE_FLAGS)
+  ...
+else
+  CFLAGS    += $(C_NO_OPTIMISE_FLAGS)
+```
+
+The real command line is therefore the base `<LANG>FLAGS` plus one contribution per
+enabled mode. Prefixes: `CPP_`, `FPP_`, `C_`, `CXX_`, `CUCC_`, `F77_`, `F90_`, `LD_`;
+modes `DEBUG`, `OPTIMISE`/`NO_OPTIMISE`, `PROFILE`, `OPENMP`, `WARN`.
+
+Two consequences:
+
+- **Never put optimisation in the base `CFLAGS`/`CXXFLAGS`/`CUCCFLAGS`.** The DEBUG
+  block runs *before* the OPTIMISE block, so a hardcoded `-O2` survives `DEBUG = yes`
+  and beats the `-O0` that debug mode appends — the debug build is not a debug build.
+  Put `-O2` in `*_OPTIMISE_FLAGS`; keep only language/ABI settings plus `-g` in the base
+  flags.
+- A `CUCC_` variant exists for every mode, so a CUDA optionlist can keep `CUCCFLAGS`
+  free of optimisation too rather than baking it in.
+
+Inspect what a configuration actually resolved to:
+`grep -n '_MODE\|_FLAGS' configs/<cfg>/config-data/make.config.defn`, or build one file
+with `gmake <cfg> SILENT=no` and read the command.
+
+### The preprocessor passes are separate
+
+Cactus preprocesses Fortran with FPP (`cpp -traditional`) as its own step before the
+compiler runs, and `CPPFLAGS` is prepended to **every** compile.
+
+- `-fopenmp` defines `_OPENMP` for the compile proper but **not** for the FPP pass.
+  Without `FPP_OPENMP_FLAGS = -D_OPENMP`, every `#ifdef _OPENMP` block in a `.F90` is
+  deleted before compilation — silently, with a successful build and working `!$omp`
+  directives.
+- Conversely, do not put a compiler-only flag in `CPP_OPENMP_FLAGS`. `CPPFLAGS` reaches
+  the `$(CUCC)` compiles too, and a bare `-fopenmp` is fatal to nvcc unless `CXX` carries
+  `--forward-unknown-to-host-compiler`. Put `-Xcompiler -fopenmp` in `CUCCFLAGS` instead.
+
+### Linking
+
+`configure` defaults `LD_OPENMP_FLAGS` from `CXX_OPENMP_FLAGS` **only when `LD` is
+unset** (`lib/make/configure.ac`, search `LD_OPENMP_FLAGS`). An optionlist that sets
+`LD` must set `LD_OPENMP_FLAGS` too, or the link fails on `undefined reference to
+GOMP_parallel`.
+
+`LIBS` and `LIBDIRS` are folded into `GENERAL_LIBRARIES`, which sits **last** on the link
+line — which is why `LIBS` resolves symbols left undefined by the thorn archives. Each
+`LIBDIRS` entry is expanded through both `LIBDIR_PREFIX` (`-L`) and `RUNDIR_PREFIX`
+(`-Wl,-rpath,`), so listing a directory there also bakes it into the executable's
+RUNPATH.
+
+### autoconf cache variables
+
+`setup_configuration.pl`'s `ParseOptionsFile` loads every `KEY = value` straight into
+`%ENV`, so any `ac_cv_*` in the optionlist vetoes the corresponding configure probe.
+Example: `ac_cv_prog_cc_c23 = no` stops configure selecting `-std=gnu23`, under which
+`typedef int bool` in older thorn C no longer compiles.
+
+**Editing the optionlist file does nothing to an existing configuration.** The file is
+copied to `configs/<cfg>/OptionList` at configure time and never re-read. To apply a
+change: `gmake <cfg>-config options=<file> THORNLIST=<file>`, or `gmake <cfg>-delete`
+first.
 
 ---
 

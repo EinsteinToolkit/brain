@@ -82,6 +82,20 @@ Consequences:
    CarpetX does not list HDF5 in `USESTHORNS` — inject `-I$HDF5_HOME/include` globally.
 4. `SM Arch ('sm_52') not found` from nvlink means the `-gencode`/`-arch` flag is on the
    compile line but not the **link** line.
+5. **The CUCC override is a wholesale replacement, not an append.** When
+   `AMREX_ENABLE_CUDA = yes`, `AMReX/src/detect.sh` emits, for every thorn except AMReX
+   itself (grep it for `CXX = $(CUCC)`):
+
+   ```make
+   CXX = $(CUCC)
+   CXXFLAGS = $(CUCCFLAGS)
+   ```
+
+   Everything Cactus would otherwise append to `CXXFLAGS` — OpenMP, optimisation,
+   warning flags — is discarded for those thorns, because the thorn-level assignment is
+   read after `make.config.defn`. Anything they need must be inside `CUCCFLAGS`:
+   `-Xcompiler -fopenmp` for OpenMP (CarpetX hard-errors on a mismatch with AMReX), and
+   `CUCC_OPTIMISE_FLAGS` for optimisation. Not emitted at all for HIP — see below.
 
 Relevant options: `AMREX_ENABLE_CUDA`, `AMREX_CMAKE_CUDA_ARCHITECTURES`, `CUCC`,
 `CUCCFLAGS`, `DISABLE_INT16`, `DISABLE_REAL16`.
