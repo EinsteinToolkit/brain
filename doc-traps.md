@@ -104,7 +104,7 @@ names are `Driver_GetValidRegion`, `Driver_SetValidRegion`, `Driver_NotifyDataMo
 | `STAGGER=` / `CENTERING={...}` group attributes | Real grammar productions used by CarpetX/multipatch thorns; documented nowhere |
 | `INVALIDATES:` | Grammar-valid, documented nowhere, essentially unused |
 | Schedule conditionals shown only as a bare `if` | `else` / `else if` chains are legal and widely used |
-| `InfrastructureThorns.tex` implies a driver overloads `Enable/DisableGroupStorage` | PUGH actually overloads `GroupStorageIncrease`/`Decrease` — a different overload point |
+| `InfrastructureThorns.tex` implies a driver overloads `Enable/DisableGroupStorage` | Different overload point, and PUGH does not register that pair. See [driver.md](driver.md) |
 | `Appendices.tex` references `.emacs`/`grdoc` tooling | No `grdoc*` file ships in the repo |
 
 ---

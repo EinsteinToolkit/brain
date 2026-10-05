@@ -40,6 +40,7 @@ Humans get the most out of `troubleshooting.md` (symptom → cause → fix) and
 | `index.md` | Entry point: mental model, routing table, ground-truth ranking, glossary |
 | `layout.md` | Tree layout, the `repos/` ↔ `arrangements/` symlink layer, inside `configs/<cfg>/` |
 | `thorn-anatomy.md` | The CCL files, grid variables, `CCTK_ARGUMENTS`, adding a thorn |
+| `driver.md` | The `Driver` contract: overloads, GH extension, PUGH vs Carpet vs CarpetX |
 | `schedule-and-presync.md` | `schedule.ccl`, bins, READS/WRITES, `presync_mode`, poison/checksum checking |
 | `cctk-api.md` | Which header holds what, the `Driver_*` API, signature traps |
 | `build-system.md` | CRL vs CST thornlists, configure → CST → compile, make targets, optionlists |

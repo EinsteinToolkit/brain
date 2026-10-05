@@ -48,6 +48,7 @@ exe/cactus_<cfg> <parfile>     (usually launched via simfactory)
 | Find where something lives; understand `repos/` vs `arrangements/` vs `configs/` | [layout.md](layout.md) |
 | Write or modify a thorn; CCL syntax; grid variables; aliased functions | [thorn-anatomy.md](thorn-anatomy.md) |
 | Schedule bins, `READS`/`WRITES`, `SYNC`, `STORAGE`, `presync_mode`, poison/validity checking | [schedule-and-presync.md](schedule-and-presync.md) |
+| What a driver must provide; PUGH vs Carpet vs CarpetX; why `CCTK_Traverse` did nothing | [driver.md](driver.md) |
 | Call `CCTK_*` / `Util_*` from thorn code; find the right header | [cctk-api.md](cctk-api.md) |
 | Configure/compile; make targets; optionlists; CST; clean-vs-delete | [build-system.md](build-system.md) |
 | HDF5 / AMReX / MPI / CUDA / HIP dependencies; `detect.sh` vs `build.sh` | [external-libraries.md](external-libraries.md) |
@@ -101,7 +102,7 @@ When two things disagree, believe them in this order:
 | **Arrangement** | Directory grouping thorns; first half of `Arrangement/Thorn` |
 | **Implementation** | The *interface* name a thorn `implements:`; several thorns may implement the same one |
 | **Configuration** | A named build tree under `configs/` |
-| **Driver** | The thorn that owns grid/storage/communication (PUGH, Carpet, CarpetX) |
+| **Driver** | The one active thorn that `implements: Driver` and owns grid, storage, and communication (PUGH, Carpet, CarpetX). Contract: [driver.md](driver.md) |
 | **Bindings** | CST-generated glue under `configs/<cfg>/bindings/` |
 | **CRL** | Component Retrieval Language — GetComponents `.th` checkout files |
 | **ThornList** | *Compile* list: plain `Arrangement/Thorn` lines. **Not** the same as a CRL file |

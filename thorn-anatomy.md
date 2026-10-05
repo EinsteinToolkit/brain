@@ -213,14 +213,8 @@ void MyThorn_Routine(CCTK_ARGUMENTS) {
 
 ## Driver / infrastructure thorns
 
-A driver registers a GH extension (`CCTK_RegisterGHExtension` +
-`SetupGH`/`InitGH`/`ScheduleTraverseGH`) and overloads communication/storage functions.
-
-> There are **two distinct storage overload points**:
-> `CCTK_OverloadEnableGroupStorage`/`DisableGroupStorage` versus
-> `CCTK_OverloadGroupStorageIncrease`/`GroupStorageDecrease`. The reference driver PUGH
-> overloads the **Increase/Decrease** pair (`repos/cactuspugh/PUGH/src/Startup.c`), not
-> Enable/Disable as `InfrastructureThorns.tex` implies.
+A driver is a thorn that `implements: Driver`. What it must register and
+overload, and how PUGH, Carpet, and CarpetX differ: [driver.md](driver.md).
 
 I/O methods self-register via `CCTK_RegisterIOMethod` plus
 `...OutputGH/TimeToOutput/TriggerOutput/OutputVarAs`. Checkpoint hooks write at
