@@ -100,3 +100,22 @@ root; `_v0` is the initial tag, not a respin marker; the −10 wk gate is "in ma
 **branch**", not "in the master thornlist"; the review page's 1 GB limit is *memory*,
 not file size; and the −Nwk schedule is not actually stable across all releases
 (ET_2026_05 departs from it).
+
+## driver.md integration (2026-10-10)
+
+Split by audience, not by size: `driver.md` = the contract (what the flesh expects,
+what each overload means, PUGH/Carpet/CarpetX comparison), which is what the routing
+table already promised; `driver-implementation.md` = thorn anatomy + write-your-own
+checklist. 362 and 218 lines, in range with the rest of the brain.
+
+Verified nothing was lost: every non-blank line of the committed 565-line original is
+present in the pair, modulo heading renumbering and three blocks rewritten on purpose
+(the `Driver_*` section, the references table, one PreSync sentence).
+
+`cctk-api.md` already owned the `Driver_*` signatures **and** the warning that
+`DriverReference.tex` names four of them wrongly. driver.md had been restating the
+table without the warning — a "one fact, one place" violation that also lost the
+caveat. Signatures now live in `cctk-api.md` only.
+
+Watch the typography when editing `driver.md`: it uses curly quotes, em-dashes and `…`
+throughout, so exact-string matching on text containing an apostrophe will miss.

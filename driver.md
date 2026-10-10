@@ -21,9 +21,13 @@ as `CCTK_SyncGroup` / `CCTK_MyProc`). At compile time you may include
 more than one driver thorn; at runtime the parameter file activates
 exactly one of them.
 
+Writing a driver of your own is a separate, rarer task: the thorn skeleton,
+the startup / SetupGH / ScheduleTraverse anatomy and a checklist live in
+[driver-implementation.md](driver-implementation.md).
+
 ---
 
-## 1. What a driver does
+## What a driver does
 
 From the Users Guide glossary and Infrastructure chapter, a driver:
 
@@ -55,7 +59,8 @@ From the Users Guide glossary and Infrastructure chapter, a driver:
 
 6. **Optionally provides related services**  
    Local/global interpolation, reductions, I/O methods, checkpoint
-   recovery, valid-region / PreSync bookkeeping, and boundary-condition
+   recovery, valid-region / PreSync bookkeeping
+   ([schedule-and-presync.md](schedule-and-presync.md)), and boundary-condition
    selection hooks (`Driver_*` APIs used by application thorns).
 
 If no driver is active, flesh dummy routines abort with messages such as
@@ -64,9 +69,9 @@ If no driver is active, flesh dummy routines abort with messages such as
 
 ---
 
-## 2. How the flesh plugs in a driver
+## How the flesh plugs in a driver
 
-### 2.1 Implementation name
+### Implementation name
 
 Every driver thorn’s `interface.ccl` must contain:
 
@@ -79,7 +84,10 @@ implements: Driver
 `driver::<name>` (implementation-scoped parameters), for example
 `driver::periodic`.
 
-### 2.2 Overloading vs registration
+How `restricted:`/`global:` sharing works, and why a `private:` parameter
+cannot be shared, is [thorn-anatomy.md](thorn-anatomy.md).
+
+### Overloading vs registration
 
 The flesh guarantees a fixed API surface. Drivers fill it in by
 **overloading** (exactly one provider wins — first overload succeeds):
@@ -88,12 +96,12 @@ The flesh guarantees a fixed API surface. Drivers fill it in by
   `CCTK_Initialise`, `CCTK_Evolve`, `CCTK_Shutdown`,  
   `CCTK_MainLoopIndex`, `CCTK_SetMainLoopIndex`
 - **Comm layer** (`CommOverloadables.h`): storage, sync, ranks, …  
-  (full list in §3)
+  (full list under *Functions a driver must overload*, below)
 
 Drivers also **register a GH extension**: opaque, per-`cGH` state that
 holds all grid-dependent bookkeeping.
 
-### 2.3 GH extension callbacks
+### GH extension callbacks
 
 At startup the driver typically does:
 
@@ -114,7 +122,7 @@ For multi-level / multi-patch drivers, schedule traversal is often
 driven by a custom **CallFunction** hook so each scheduled routine can
 run once per component (or tile) with a correctly filled `cGH`.
 
-### 2.4 Startup schedule name
+### Startup schedule name
 
 By convention, drivers schedule their startup routine as
 `Driver_Startup`:
@@ -133,14 +141,14 @@ group tags). Shutdown is often aliased as `Driver_Terminate` or
 
 ---
 
-## 3. Functions a driver must overload
+## Functions a driver must overload
 
 The Infrastructure Thorn Writers Guide lists the required overload set.
 In modern code, **group storage increase/decrease** is preferred over the
 older enable/disable pair; **`SyncGroupsByDirI`** is preferred over
 **`SyncGroup`**.
 
-### 3.1 Core communication / storage API
+### Core communication / storage API
 
 | Overload | Purpose |
 |----------|---------|
@@ -173,7 +181,7 @@ const int *ArrayGroupSizeB(const cGH *GH, int dir, int group,
                            const char *groupname);
 ```
 
-### 3.2 Main-loop overloads (optional for unigrid, required for AMR)
+### Main-loop overloads (optional for unigrid, required for AMR)
 
 | Overload | Purpose |
 |----------|---------|
@@ -186,7 +194,7 @@ The flesh supplies defaults (`CactusDefaultInitialise`,
 simple unigrid driver (PUGH often only overloads **Evolve**). Carpet and
 CarpetX overload all three.
 
-### 3.3 Optional extras
+### Optional extras
 
 | Overload / registration | Purpose |
 |-------------------------|---------|
@@ -196,11 +204,12 @@ CarpetX overload all three.
 | I/O method registration | `CCTK_RegisterIOMethod*` (usually companion IO thorns). |
 | Reduction / interpolation operators | Often separate thorns (`PUGHReduce`, `CarpetReduce`, …). |
 
-### 3.4 Application-facing `Driver_*` helpers
+### Application-facing `Driver_*` helpers
 
-Application thorns call higher-level helpers (documented in the
-Reference Manual *Driver\_\* Functions* chapter). Drivers that support
-PreSync / automated boundaries implement the corresponding behaviour:
+Application thorns call higher-level helpers. A PreSync-aware driver
+provides them as **aliased functions**, which is a different mechanism from
+the overload macros above: evolution thorns call these, nobody registers
+them with the flesh.
 
 | Function | Role |
 |----------|------|
@@ -208,176 +217,21 @@ PreSync / automated boundaries implement the corresponding behaviour:
 | `Driver_RequireValidData` / `Driver_NotifyDataModified` | Request or report validity of interior/boundary/ghost regions. |
 | `Driver_GetValidRegion` / `Driver_SetValidRegion` | Query or set validity masks (`WH_INTERIOR`, `WH_BOUNDARY`, `WH_GHOSTS`, …). |
 
-These are not the same as the overload macros; they are fleshy or
-driver-provided functions used by evolution thorns. Carpet wires PreSync
-into its `CallFunction` path; schedule groups such as
-`Driver_BoundarySelect` / `Driver_ApplyBCs` appear in Carpet’s
+**Signatures live in [cctk-api.md](cctk-api.md), not here.** So does the
+warning that the Reference Manual's `DriverReference.tex` documents four of
+these under `CCTK_*` names that do not exist — do not take the names from
+it. What validity means and how `presync_mode` gates it is
+[schedule-and-presync.md](schedule-and-presync.md).
+
+Carpet wires PreSync into its `CallFunction` path; schedule groups such as
+`Driver_BoundarySelect` / `Driver_ApplyBCs` appear in Carpet's
 `schedule.ccl`.
 
 ---
 
-## 4. Anatomy of an implementation
+## Comparing the three drivers
 
-The flesh guide’s recommended structure matches all three real drivers.
-
-### 4.1 Thorn skeleton
-
-```
-MyDriver/
-  interface.ccl      # implements: Driver
-  param.ccl          # restricted: (driver::*) + private grid parameters
-  schedule.ccl       # Driver_Startup, optional terminate/shutdown
-  configuration.ccl  # optional MPI / library requirements
-  src/
-    Startup.c(c)     # register GH extension + overloads
-    SetupGH...       # domain + group setup
-    Storage...       # GroupStorageIncrease/Decrease, queries
-    Comm...          # SyncGroupsByDirI, Barrier, MyProc, nProcs
-    Evolve...        # optional main loop
-    ...
-```
-
-### 4.2 Startup (register everything)
-
-Minimal pattern (compare `PUGH/src/Startup.c`,
-`Carpet/src/CarpetStartup.cc`, `CarpetX/src/driver.cxx`):
-
-```c
-int MyDriver_Startup(void)
-{
-  int ext = CCTK_RegisterGHExtension("MyDriver");
-  CCTK_RegisterGHExtensionSetupGH(ext, MySetupGH);
-  CCTK_RegisterGHExtensionInitGH(ext, MyInitGH);
-  CCTK_RegisterGHExtensionScheduleTraverseGH(ext, MyScheduleTraverseGH);
-
-  CCTK_OverloadGroupStorageIncrease(MyGroupStorageIncrease);
-  CCTK_OverloadGroupStorageDecrease(MyGroupStorageDecrease);
-  CCTK_OverloadQueryMaxTimeLevels(MyQueryMaxTimeLevels);
-  CCTK_OverloadSyncGroupsByDirI(MySyncGroupsByDirI);
-  CCTK_OverloadEnableGroupComm(MyEnableGroupComm);
-  CCTK_OverloadDisableGroupComm(MyDisableGroupComm);
-  CCTK_OverloadBarrier(MyBarrier);
-  CCTK_OverloadMyProc(MyMyProc);
-  CCTK_OverloadnProcs(MynProcs);
-  CCTK_OverloadExit(MyExit);
-  CCTK_OverloadAbort(MyAbort);
-  CCTK_OverloadArrayGroupSizeB(MyArrayGroupSizeB);
-  CCTK_OverloadQueryGroupStorageB(MyQueryGroupStorageB);
-  CCTK_OverloadGroupDynamicData(MyGroupDynamicData);
-
-  /* AMR drivers also: */
-  /* CCTK_OverloadInitialise(MyInitialise); */
-  /* CCTK_OverloadEvolve(MyEvolve); */
-  /* CCTK_OverloadShutdown(MyShutdown); */
-
-  CCTK_RegisterBanner("Driver provided by MyDriver");
-  return 0;
-}
-```
-
-Only one thorn may successfully overload each symbol. If two drivers are
-*active* in the parameter file, startup fails or behaves unpredictably;
-activate exactly one.
-
-### 4.3 The GH extension
-
-Store **everything** grid-related here: pointers for each variable and
-time level, local/global shapes, ghost widths, MPI neighbours, AMR level
-lists, etc.
-
-```c
-struct MyExtension {
-  void ***data;          /* [var][timelevel] -> memory */
-  int *activetimelevels;
-  int *maxtimelevels;
-  /* domain decomposition, comm buffers, ... */
-};
-```
-
-**SetupGH** outline:
-
-1. Read parameters (global size, ghosts, periodicity, …).
-2. Compute processor topology and local bounds.
-3. For each Cactus group (`CCTK_NumGroups`, `CCTK_GroupData`), create
-   driver-side descriptors (but do not necessarily allocate GF memory
-   until storage is enabled).
-4. Ensure **grid scalars** have storage (flesh expectation).
-5. Return the extension pointer for `GH->extensions[handle]`.
-
-### 4.4 ScheduleTraverseGH
-
-Before calling into user code:
-
-1. Set `GH->cctk_dim`, `cctk_lsh`, `cctk_gsh`, `cctk_lbnd`, `cctk_ubnd`,
-   `cctk_ash`, `cctk_nghostzones`, `cctk_bbox`, `cctk_levfac`,
-   `cctk_time`, `cctk_delta_time`, level/component indices, …
-2. For every variable/timelevel with storage, set
-   `GH->data[var][tl]` to the contiguous local buffer.
-3. Call `CCTK_ScheduleTraverse(where, GH, call_function)`  
-   - `call_function == NULL` uses the flesh default caller (fine for
-     unigrid).  
-   - A custom caller is the natural place for **looping over AMR
-     components** or CarpetX tiles/boxes.
-
-Return whether synchronisation was already performed for the routine’s
-`SYNC` list (nonzero ⇒ flesh will not sync again).
-
-### 4.5 Storage
-
-Scheduler `STORAGE: group[tl]` clauses call into the driver. Preferred
-implementation:
-
-- **`GroupStorageIncrease`**: if inactive levels < requested, allocate
-  and poison/initialise as needed; write old counts into `status[]`;
-  return aggregate previous state.
-- **`GroupStorageDecrease`**: free levels carefully (other schedule
-  entries may still need them); restore prior counts.
-- **`QueryMaxTimeLevels`**: report allocation capacity per group.
-
-Memory layout must match what application thorns and Fortran bindings
-expect: Fortran array order, ghost padding (`ash` vs `lsh`), and
-alignment constraints advertised via `cGroupDynamicData`.
-
-### 4.6 Synchronisation
-
-`SyncGroupsByDirI` must:
-
-1. For each group with communication enabled and storage active,
-2. Exchange ghost zones with neighbouring subdomains (and periodic
-   wraps if `driver::periodic*` is set),
-3. Optionally fill symmetry/physical boundaries when the driver owns
-   that pipeline (Carpet PreSync path),
-4. Respect multi-level rules (sync on the current level only; prolongate
-   separately).
-
-PUGH implements classic MPI domain-decomposition halo exchange
-(`PUGH/src/Comm.c` and send/receive helpers). Carpet and CarpetX also
-handle inter-level and inter-box communication.
-
-### 4.7 Evolution loop (AMR sketch)
-
-Carpet/CarpetX-style responsibilities inside an overloaded Evolve:
-
-1. While not done (iteration / time / runtime termination parameters):
-2. **Cycle time levels** (rotate pointers; invalidate new “current”).
-3. For each refinement level (coarse to fine or as required by the
-   algorithm):  
-   - Select level mode / enter component loops.  
-   - `CCTK_Traverse` evolution bins (`EVOL`, `POSTSTEP`, …).  
-   - Synchronise; apply BCs.  
-   - Prolongate fine boundaries from coarse; restrict fine→coarse.
-4. Periodic regridding / load balancing.
-5. Analysis and `CCTK_OutputGH` (or overloaded OutputGH).
-6. Checkpoint as scheduled.
-
-Unigrid default evolve (`CactusDefaultEvolve`) simply steps a single GH
-and calls output — enough when there is only one level.
-
----
-
-## 5. Comparing the three drivers
-
-### 5.1 PUGH (`CactusPUGH/PUGH`)
+### PUGH (`CactusPUGH/PUGH`)
 
 - **Model**: single regular grid, domain-decomposed across MPI ranks.
 - **Startup**: registers GH extension Setup/Init/ScheduleTraverse;
@@ -389,7 +243,7 @@ and calls output — enough when there is only one level.
 - **Companion thorns**: `PUGHReduce`, `PUGHInterp`, `PUGHSlab`,
   `CactusPUGHIO/*`.
 
-### 5.2 Carpet (`Carpet/Carpet`)
+### Carpet (`Carpet/Carpet`)
 
 - **Model**: Berger–Oliger AMR with multiple levels and components;
   full overloads of Initialise/Evolve/Shutdown/OutputGH.
@@ -397,10 +251,11 @@ and calls output — enough when there is only one level.
   split can run `BEFORE Driver_Startup`.
 - **Extras**: PreSync, poisoning, checksums, schedule wrappers,
   regridding hooks, time refinement.
+  Depth on all of that: [schedule-and-presync.md](schedule-and-presync.md).
 - **Companion thorns**: `CarpetLib`, `CarpetRegrid*`, `CarpetIO*`,
   `CarpetReduce`, `CarpetInterp*`, …
 
-### 5.3 CarpetX (`CarpetX/CarpetX`)
+### CarpetX (`CarpetX/CarpetX`)
 
 - **Model**: AMReX-backed block-structured AMR; GPU-aware loops via
   companion loop headers.
@@ -412,7 +267,7 @@ and calls output — enough when there is only one level.
 - **Companion thorns**: `Loop`, `AMReX` external, `ODESolvers`,
   `CoordinatesX`, various `*X` physics thorns.
 
-### 5.4 Feature matrix (approximate)
+### Feature matrix (approximate)
 
 | Capability | PUGH | Carpet | CarpetX |
 |------------|:----:|:------:|:-------:|
@@ -425,54 +280,7 @@ and calls output — enough when there is only one level.
 
 ---
 
-## 6. Checklist: implementing a new driver
-
-Use this as a working checklist when writing a fourth driver or a
-teaching minimal driver.
-
-### CCL and packaging
-
-- [ ] `interface.ccl`: `implements: Driver`
-- [ ] `param.ccl`: restricted periodicity (if applicable) + private
-      grid/topology parameters; `shares:` any flesh parameters you need
-      (`cactus::cctk_itlast`, …)
-- [ ] `schedule.ccl`: `… as Driver_Startup` at `STARTUP`; terminate
-      cleanly
-- [ ] `configuration.ccl`: MPI / external library requirements
-- [ ] Ensure thorn list activates **only one** Driver implementation
-
-### Startup registration
-
-- [ ] `CCTK_RegisterGHExtension` + Setup (+ Init) + ScheduleTraverse
-- [ ] Overload storage increase/decrease + max timelevels
-- [ ] Overload sync-by-direction, barrier, MyProc, nProcs, Exit, Abort
-- [ ] Overload ArrayGroupSizeB, QueryGroupStorageB, GroupDynamicData
-- [ ] Overload Enable/DisableGroupComm (and storage enable/disable if
-      required for compatibility)
-- [ ] Overload Initialise/Evolve/Shutdown if not using flesh defaults
-- [ ] Register a banner string
-
-### Correctness responsibilities
-
-- [ ] Scalars always have usable storage
-- [ ] `GH->data[var][tl]` is non-NULL iff that time level is active
-- [ ] Geometry arrays on `cGH` match the memory layout you expose
-- [ ] Ghost exchange is consistent with `nghostzones` and symmetries
-- [ ] Time level cycling matches MoL / multi-step methods users expect
-- [ ] Collective operations run on all ranks (no deadlocks on error paths)
-- [ ] Recovery/checkpoint compatible with your layout (if you support it)
-
-### Testing
-
-- [ ] `CactusTest` / wave-toy style unigrid evolution with your driver
-- [ ] Multi-process ghost exchange (norms match single-process)
-- [ ] Storage on/off via schedule clauses
-- [ ] If AMR: convergence under refinement, restrict/prolongate tests
-- [ ] Build with another driver **inactive** to ensure no symbol clashes
-
----
-
-## 7. Minimal mental model
+## Minimal mental model
 
 ```
 Parameter file activates thorn PUGH | Carpet | CarpetX
@@ -503,24 +311,31 @@ flesh owns scheduling and the API names; physics thorns own the PDE.**
 
 ---
 
-## 8. Primary references in this tree
+## Primary references in this tree
 
-| Topic | Location |
-|-------|----------|
-| Driver concept (Users Guide) | `repos/flesh/doc/UsersGuide/InfrastructureThorns.tex` (§ Drivers) |
-| Parallelisation for app writers | `repos/flesh/doc/UsersGuide/ApplicationThorns.tex` (§ Parallelisation) |
-| Glossary entry | `repos/flesh/doc/UsersGuide/Appendices.tex` (`driver`) |
-| `Driver_*` API reference | `repos/flesh/doc/ReferenceManual/DriverReference.tex` |
-| Comm overload list | `repos/flesh/src/include/CommOverloadables.h` |
-| Main overload list | `repos/flesh/src/include/MainOverloadables.h` |
-| Dummy errors without a driver | `repos/flesh/src/main/Dummies.c` |
-| PUGH startup / storage / comm | `arrangements/CactusPUGH/PUGH/src/` |
-| Carpet startup / evolve | `arrangements/Carpet/Carpet/src/CarpetStartup.cc`, `Evolve.cc` |
-| CarpetX startup | `arrangements/CarpetX/CarpetX/src/driver.cxx` |
+The four `doc/` rows are **LaTeX sources that the brain does not trust** —
+see [doc-traps.md](doc-traps.md) before relying on any of them, and prefer
+the header and the real driver source underneath.
+
+| Topic | Location | Trust |
+|-------|----------|-------|
+| Driver concept (Users Guide) | `repos/flesh/doc/UsersGuide/InfrastructureThorns.tex` (§ Drivers) | Implies a driver overloads `Enable`/`DisableGroupStorage`. PUGH does not |
+| Parallelisation for app writers | `repos/flesh/doc/UsersGuide/ApplicationThorns.tex` (§ Parallelisation) | Broadly sound |
+| Glossary entry | `repos/flesh/doc/UsersGuide/Appendices.tex` (`driver`) | Broadly sound |
+| `Driver_*` API reference | `repos/flesh/doc/ReferenceManual/DriverReference.tex` | **Four of six functions are under `CCTK_*` names that do not exist.** Use [cctk-api.md](cctk-api.md) |
+| Comm overload list | `repos/flesh/src/include/CommOverloadables.h` | Source. Authoritative |
+| Main overload list | `repos/flesh/src/include/MainOverloadables.h` | Source. Authoritative |
+| Dummy errors without a driver | `repos/flesh/src/main/Dummies.c` | Source. Authoritative |
+| PUGH startup / storage / comm | `arrangements/CactusPUGH/PUGH/src/` | Source. Smallest complete driver |
+| Carpet startup / evolve | `arrangements/Carpet/Carpet/src/CarpetStartup.cc`, `Evolve.cc` | Source |
+| CarpetX startup | `arrangements/CarpetX/CarpetX/src/driver.cxx` | Source |
+
+`arrangements/*/*` are symlinks into `repos/*`; editing either edits the real
+git checkout. See [layout.md](layout.md).
 
 ---
 
-## 9. Practical notes
+## Practical notes
 
 1. **One driver at runtime.** Multiple drivers may appear in a
    configuration’s thorn list for convenience, but `ActiveThorns` must

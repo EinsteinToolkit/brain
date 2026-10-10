@@ -29,6 +29,26 @@ Acceptance:
 Deliberately out of scope (see `notes.md` for why): a snapshot of currently-open
 tickets, the wiki's per-person responsibility table, release code names.
 
+## R2 — Integrate the restored driver.md (2026-10-10)
+
+> "push it and then work on the follow-ups"
+
+The three follow-ups raised after `driver.md` was restored:
+
+- [x] Its reference table pointed at `DriverReference.tex` with no caveat, although
+      `doc-traps.md` records that four of six functions there are under names that do
+      not exist. The table now carries a per-row trust column.
+- [x] It had no links to sibling files, and its `Driver_*` section duplicated
+      `cctk-api.md`. The signatures now live in `cctk-api.md` alone, and the file links
+      out to `cctk-api.md`, `schedule-and-presync.md`, `thorn-anatomy.md`,
+      `build-system.md`, `layout.md` and `doc-traps.md`.
+- [x] At 565 lines it was a third of the brain's prose, against `index.md`'s promise of
+      one topic file per task. Split by audience: `driver.md` (362) keeps the contract
+      and the driver comparison, matching its existing routing-table entry;
+      `driver-implementation.md` (218) takes the thorn anatomy and the
+      write-your-own checklist, which is a much rarer task. Numbered headings dropped —
+      no other file in the brain uses them.
+
 Constraints inherited from `CLAUDE.md`:
 
 - No software installs without asking. (None were needed; `gh` and `git` were present.)

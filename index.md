@@ -49,6 +49,7 @@ exe/cactus_<cfg> <parfile>     (usually launched via simfactory)
 | Write or modify a thorn; CCL syntax; grid variables; aliased functions | [thorn-anatomy.md](thorn-anatomy.md) |
 | Schedule bins, `READS`/`WRITES`, `SYNC`, `STORAGE`, `presync_mode`, poison/validity checking | [schedule-and-presync.md](schedule-and-presync.md) |
 | What a driver must provide; PUGH vs Carpet vs CarpetX; why `CCTK_Traverse` did nothing | [driver.md](driver.md) |
+| Write a new driver thorn: skeleton, startup registration, SetupGH/ScheduleTraverse, checklist | [driver-implementation.md](driver-implementation.md) |
 | Call `CCTK_*` / `Util_*` from thorn code; find the right header | [cctk-api.md](cctk-api.md) |
 | Configure/compile; make targets; optionlists; CST; clean-vs-delete | [build-system.md](build-system.md) |
 | HDF5 / AMReX / MPI / CUDA / HIP dependencies; `detect.sh` vs `build.sh` | [external-libraries.md](external-libraries.md) |

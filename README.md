@@ -41,6 +41,7 @@ Humans get the most out of `troubleshooting.md` (symptom → cause → fix) and
 | `layout.md` | Tree layout, the `repos/` ↔ `arrangements/` symlink layer, inside `configs/<cfg>/` |
 | `thorn-anatomy.md` | The CCL files, grid variables, `CCTK_ARGUMENTS`, adding a thorn |
 | `driver.md` | The `Driver` contract: overloads, GH extension, PUGH vs Carpet vs CarpetX |
+| `driver-implementation.md` | Writing a driver: thorn skeleton, startup registration, SetupGH, checklist |
 | `schedule-and-presync.md` | `schedule.ccl`, bins, READS/WRITES, `presync_mode`, poison/checksum checking |
 | `cctk-api.md` | Which header holds what, the `Driver_*` API, signature traps |
 | `build-system.md` | CRL vs CST thornlists, configure → CST → compile, make targets, optionlists |
