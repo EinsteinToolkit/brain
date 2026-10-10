@@ -55,6 +55,8 @@ exe/cactus_<cfg> <parfile>     (usually launched via simfactory)
 | `sim build` / `create-run` / `submit`; machine `.ini`; MDB; testsuite | [simfactory.md](simfactory.md) |
 | Something is broken — symptom → cause → fix | [troubleshooting.md](troubleshooting.md) |
 | A run is slower than the physics warrants (debug checks, GPU startup cost) | [troubleshooting.md](troubleshooting.md) → *Performance* |
+| Open/triage/search a ticket; ask for or give a review; the release timeline; propose a new thorn | [tickets-and-review.md](tickets-and-review.md) |
+| Write a testsuite test: `test/` layout, `test.ccl`, tolerances, `NPROCS` | [testsuite-authoring.md](testsuite-authoring.md) |
 | The shipped LaTeX docs disagree with the source | [doc-traps.md](doc-traps.md) |
 
 ---
@@ -111,6 +113,10 @@ When two things disagree, believe them in this order:
 | **SCRATCH_BUILD** | `configs/<cfg>/scratch` — external library builds and intermediates |
 | **PreSync** | The `READS`/`WRITES`-driven automatic sync machinery, gated by `presync_mode` |
 | **GF / ARRAY / SCALAR** | Grid-variable group types (grid function / distributed array / non-communicated scalar) |
+| **Manifest** | The `manifest` repo, whose `einsteintoolkit.th` *is* the Einstein Toolkit: a list of checkout lines for independently hosted component repos |
+| **Tickets** | `github.com/EinsteinToolkit/tickets` — the issue tracker, migrated from Bitbucket (and Trac before that). See [tickets-and-review.md](tickets-and-review.md) |
+| **Release chair** | The per-release coordinator who runs the `ET_YYYY_MM` cycle and owns the inclusion decisions |
+| **`test.ccl`** | Per-thorn testsuite settings (`NPROCS`, `ABSTOL`/`RELTOL`, `EXTENSIONS`) in `<Thorn>/test/` — unrelated to the four CCL declaration files |
 
 ---
 
@@ -130,6 +136,11 @@ Rules for editing it:
   `cactus_<cfg> -S` for the schedule tree, `@schedule_bins` for valid bin names).
 - Anything that is true only of one machine, cluster, or configuration does **not**
   belong here. This describes Cactus, not a site.
+
+After editing, run `python3 -I tests/test_brain_consistency.py` — it checks that every
+relative link resolves, that every topic file is reachable from this routing table and
+listed in `README.md`, that no file contains tabs, and that no inline code span is
+wrapped across a line break.
 
 `README.md` is the human-facing introduction to this directory; you do not need it.
 Licensed LGPL v2, same as the Cactus Flesh — see [COPYING](COPYING).

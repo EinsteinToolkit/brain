@@ -23,6 +23,10 @@ exists so you do not waste a debugging session trusting it.
 
 Also empty-ish or self-admittedly stale: `Procedures.tex` (its own line 14 says the
 chapter is "out-dated and needs a rewrite"; still names BitBucket as the issue tracker).
+The tracker moved to `github.com/EinsteinToolkit/tickets` in September 2026, and
+`docs.einsteintoolkit.org/et-docs/*` now 301-redirects to the
+`github.com/EinsteinToolkit/wiki` wiki. Every URL the shipped docs give for either is
+dead or redirected — see [tickets-and-review.md](tickets-and-review.md).
 
 ---
 

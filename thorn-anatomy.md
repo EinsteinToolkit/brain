@@ -72,9 +72,10 @@ PROVIDES FUNCTION <alias> WITH <impl_fn> LANGUAGE C|Fortran
 ```
 
 - `SUBROUTINE` == `void FUNCTION`.
-- Return types allowed: `void CCTK_INT CCTK_REAL CCTK_COMPLEX CCTK_POINTER
-  CCTK_POINTER_TO_CONST`. Arguments may additionally be `STRING`; function-pointer
-  arguments use `CCTK_FPOINTER` (no nesting).
+- Return types allowed:
+  `void CCTK_INT CCTK_REAL CCTK_COMPLEX CCTK_POINTER CCTK_POINTER_TO_CONST`.
+  Arguments may additionally be `STRING`; function-pointer arguments use
+  `CCTK_FPOINTER` (no nesting).
 - With `USES FUNCTION` you **must** guard the call with
   `CCTK_IsFunctionAliased("<alias>")` — calling an unregistered aliased function aborts.
 - A provider commonly also `USES FUNCTION` its own alias so it can call it generically.
@@ -105,8 +106,8 @@ Per-parameter modifiers on the declaration line:
   `ML_BSSN`'s `ACCUMULATOR-BASE=MethodofLines::MoL_Num_Evolved_Vars`.
 
 Only **`restricted:`** and **`global:`** parameters can be shared. `USES`/`EXTENDS` of
-another thorn's `private:` parameter is a CST error — `Thorn "X" attempted to EXTEND or
-USE non-restricted parameter "P" from implementation "I"`
+another thorn's `private:` parameter is a CST error —
+`Thorn "X" attempted to EXTEND or USE non-restricted parameter "P" from implementation "I"`
 (`lib/sbin/ImpParamConsistency.pl`); the bindings bear this out, exposing only
 `ParameterCRestricted<IMPL>.h` and the global struct to consumers. If you need a thorn
 to react to someone else's `private:` parameter, that parameter has to move to
@@ -195,9 +196,9 @@ void MyThorn_Routine(CCTK_ARGUMENTS) {
 - The `_CHECKED` macro is keyed purely by **function name** and accumulates the union of
   clauses from *every* place that name is scheduled in the thorn.
 - Declaration order matters: arguments macro first, then parameters.
-- Standard `CCTK_ARGUMENTS` fields: `cctkGH, cctk_dim, cctk_lsh, cctk_ash, cctk_gsh,
-  cctk_iteration, cctk_delta_time, cctk_time, cctk_delta_space, cctk_nghostzones,
-  cctk_origin_space`.
+- Standard `CCTK_ARGUMENTS` fields: `cctkGH`, `cctk_dim`, `cctk_lsh`, `cctk_ash`,
+  `cctk_gsh`, `cctk_iteration`, `cctk_delta_time`, `cctk_time`, `cctk_delta_space`,
+  `cctk_nghostzones`, `cctk_origin_space`.
 - Parameters are **read-only local copies**. `CCTK_ParameterSet` does not change the
   value already seen by the calling routine.
 - KEYWORD/STRING parameters are opaque C string pointers in Fortran — use

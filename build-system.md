@@ -227,8 +227,8 @@ compiler runs, and `CPPFLAGS` is prepended to **every** compile.
 
 `configure` defaults `LD_OPENMP_FLAGS` from `CXX_OPENMP_FLAGS` **only when `LD` is
 unset** (`lib/make/configure.ac`, search `LD_OPENMP_FLAGS`). An optionlist that sets
-`LD` must set `LD_OPENMP_FLAGS` too, or the link fails on `undefined reference to
-GOMP_parallel`.
+`LD` must set `LD_OPENMP_FLAGS` too, or the link fails on
+`undefined reference to GOMP_parallel`.
 
 `LIBS` and `LIBDIRS` are folded into `GENERAL_LIBRARIES`, which sits **last** on the link
 line — which is why `LIBS` resolves symbols left undefined by the thorn archives. Each

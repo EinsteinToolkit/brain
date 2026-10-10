@@ -263,8 +263,9 @@ clause per scheduled routine.**
 
 > `check_valid_gf` currently ignores its own argument. The parameter is `nan_handling1`,
 > but a local `constexpr nan_handling_t nan_handling = forbid_nans` shadows it under a
-> `#warning "TODO"` (`valid.cxx:268-283`). The callers' `do_checkpoint ? forbid_nans :
-> allow_nans` choice (e.g. `schedule.cxx:2006-2008`) is therefore dead code.
+> `#warning "TODO"` (`valid.cxx:268-283`). The callers' choice between
+> `do_checkpoint ? forbid_nans : allow_nans` (e.g. `schedule.cxx:2006-2008`) is
+> therefore dead code.
 
 ### The checksum pair is a different check
 

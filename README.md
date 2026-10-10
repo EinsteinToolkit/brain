@@ -46,6 +46,8 @@ Humans get the most out of `troubleshooting.md` (symptom → cause → fix) and
 | `build-system.md` | CRL vs CST thornlists, configure → CST → compile, make targets, optionlists |
 | `external-libraries.md` | `detect.sh` vs `build.sh`, MPI, CUDA, ROCm/HIP, AMReX startup costs |
 | `simfactory.md` | MDB, machine resolution, per-configuration files, `envsetup` vs runscript |
+| `testsuite-authoring.md` | Writing a test case: `test/` layout, `test.ccl`, tolerances, design rules |
+| `tickets-and-review.md` | The ET tracker, how patches and new components get reviewed, the release timeline |
 | `troubleshooting.md` | Symptom → cause → fix, including performance surprises |
 | `doc-traps.md` | Where `repos/flesh/doc/*` contradicts the source |
 
@@ -65,6 +67,11 @@ Humans get the most out of `troubleshooting.md` (symptom → cause → fix) and
 
 Distilled from earlier source audits and re-verified against this checkout on
 2026-09-17: flesh `ET_2026_05` / `Cactus_4.20.0_v0`.
+
+`tickets-and-review.md` and `testsuite-authoring.md` were added on 2026-10-10 from a
+full crawl of `github.com/EinsteinToolkit/tickets` (2984 tickets, 13094 comments) and
+the `EinsteinToolkit/wiki` wiki, with every technical claim re-checked against
+`repos/flesh/lib/sbin/RunTestUtils.pl` and the checkout.
 
 Verification is a snapshot, not a guarantee. Anything here can go stale as the tree
 moves; when this disagrees with the source, the source wins, and the fix is to update
