@@ -46,6 +46,16 @@ Ordered by phase. For the full ExternalLibraries/GPU cases see
 | Out of disk in `configs/` | | Set `CACTUS_CONFIGS_DIR` to relocate it |
 | `/usr/bin/ld: cannot find -ludev` | hwloc (and some other stacks) link against libudev | Install `libudev-dev` (provides the `libudev.so` symlink); runtime needs only `libudev1` |
 
+## SimFactory / job submission
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| An edit to `mdb/submitscripts/*.sub` or `mdb/runscripts/*.run` has no effect, with no warning | SimFactory reads a copy, not the MDB: `sim build` copies into `configs/<cfg>/`, `sim create*` copies again into `<simdir>/SIMFACTORY/run/`, and that per-simulation copy is what `submit()` uses, including for later restarts | Rebuild (or `cp` into `configs/<cfg>/`) to fix the configuration; an already-created simulation needs a new simulation, or an edit to its own copy. Distinct from the "Optionlist change has no effect" row above, which is the build configuration. See [simfactory.md](simfactory.md) |
+| The job runs, but `sacct` shows an account you never configured | A placeholder such as `allocation = NO_ALLOCATION` reaching `#SBATCH --account=@ALLOCATION@`. Where accounting is configured but not enforced, Slurm ignores the unknown account and charges the default association, so the entry looks correct — while `AccountingStorageEnforce=associations` elsewhere rejects the same line | `sacct -j <jobid> -o JobID,Account,State,ExitCode`. With no accounting, drop the `--account` line from the submit script — **not** the `allocation` key, which is required. See [simfactory.md](simfactory.md) |
+| `fatal: machine <name> is missing a required key: allocation` | `GetLocalEnvironment()` requires `user`, `allocation`, `sourcebasedir`. Normally `allocation` arrives from the `[default]` section of `etc/defs.local.ini`, so removing it from an `.ini` looks harmless until that is gone too | Re-run `sim setup-silent`, or set the key |
+| `sim whoami` prints `Current machine: None` on a compute node, though it resolves on the head node | `aliaspattern` matches only the head node | Widen it. Note this does **not** break jobs from the standard submit templates — they pass `--machine=@MACHINE@`, resolved at `create` time — but it does break running `sim` by hand inside an allocation. See [simfactory.md](simfactory.md) |
+| `ppn` / `max-num-threads` in a generated `.ini` do not match the nodes jobs land on | `sim setup`/`setup-silent` run `lscpu` on whatever host you invoked them from — normally the head node | Re-run on the target partition, or edit by hand. `memory` is never auto-generated (`lscpu` reports none) — take it from `free -m` or `scontrol show node <n>` |
+
 ## Runtime
 
 | Symptom | Cause | Fix |
@@ -60,7 +70,7 @@ Ordered by phase. For the full ExternalLibraries/GPU cases see
 | `mpirun ... "Unknown option -np"` | | `mpirun ./cactus_x par -i -np 8` |
 | `libhdf5.so` load errors | `LD_LIBRARY_PATH` not set, or not propagated to remote ranks by the launcher | Set it in the runscript, or remove the `.so` files to force static linking |
 | `Unable to create UD QP` / `PSM3 can't open nic unit` | OFI/PSM3 trying the node's RoCE/IB NIC | `export I_MPI_FABRICS=shm` (+ `FI_PROVIDER=tcp`) |
-| SIGILL / `Illegal instruction` only on compute nodes | Binary built for the login node's ISA; the partition has older CPUs | Submit to a CPU-matched partition, or lower the arch flags |
+| SIGILL / `Illegal instruction` only on compute nodes | Binary built for the login node's ISA; the partition has older or AMD CPUs | Submit to a CPU-matched partition, lower the arch flags, or give that partition its own entry and optionlist. See [simfactory.md](simfactory.md) |
 | `IOBasic::outInfo_*` prints nothing useful | No reduction thorn active | Activate one (e.g. `PUGHReduce`) |
 | Want to stop at a coordinate time rather than an iteration | | `Cactus::terminate="time"` + `Cactus::cctk_final_time` instead of `cctk_itlast` |
 | Two `CCTK_ANALYSIS` routines trigger on the same variable and one never runs | By design — the first scheduled one wins | Give them different triggers |

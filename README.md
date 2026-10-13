@@ -46,7 +46,7 @@ Humans get the most out of `troubleshooting.md` (symptom → cause → fix) and
 | `cctk-api.md` | Which header holds what, the `Driver_*` API, signature traps |
 | `build-system.md` | CRL vs CST thornlists, configure → CST → compile, make targets, optionlists |
 | `external-libraries.md` | `detect.sh` vs `build.sh`, MPI, CUDA, ROCm/HIP, AMReX startup costs |
-| `simfactory.md` | MDB, machine resolution, per-configuration files, `envsetup` vs runscript |
+| `simfactory.md` | MDB, machine resolution, the per-configuration/per-simulation copies, heterogeneous clusters, `allocation`, `envsetup` vs runscript |
 | `testsuite-authoring.md` | Writing a test case: `test/` layout, `test.ccl`, tolerances, design rules |
 | `tickets-and-review.md` | The ET tracker, how patches and new components get reviewed, the release timeline |
 | `troubleshooting.md` | Symptom → cause → fix, including performance surprises |

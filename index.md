@@ -53,7 +53,7 @@ exe/cactus_<cfg> <parfile>     (usually launched via simfactory)
 | Call `CCTK_*` / `Util_*` from thorn code; find the right header | [cctk-api.md](cctk-api.md) |
 | Configure/compile; make targets; optionlists; CST; clean-vs-delete | [build-system.md](build-system.md) |
 | HDF5 / AMReX / MPI / CUDA / HIP dependencies; `detect.sh` vs `build.sh` | [external-libraries.md](external-libraries.md) |
-| `sim build` / `create-run` / `submit`; machine `.ini`; MDB; testsuite | [simfactory.md](simfactory.md) |
+| `sim build` / `create-run` / `submit`; machine `.ini`; MDB; testsuite; heterogeneous clusters (per-partition entries) | [simfactory.md](simfactory.md) |
 | Something is broken — symptom → cause → fix | [troubleshooting.md](troubleshooting.md) |
 | A run is slower than the physics warrants (debug checks, GPU startup cost) | [troubleshooting.md](troubleshooting.md) → *Performance* |
 | Open/triage/search a ticket; ask for or give a review; the release timeline; propose a new thorn | [tickets-and-review.md](tickets-and-review.md) |

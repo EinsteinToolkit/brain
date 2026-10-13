@@ -51,12 +51,26 @@ fix is to delete the file and re-run `sim setup-silent`, not to hand-edit it.
 
 ---
 
-## Two different things both called a machine's files
+## Three different things all called a machine's files
 
 | Thing | Where | Created by | Scope |
 |---|---|---|---|
 | Machine **template** | `mdb/machines/<name>.ini` + the optionlist/submitscript/runscript it names | You, by hand | The machine; shared by every configuration on it |
 | Per-**configuration** copies | `configs/<cfg>/{OptionList,SubmitScript,RunScript}` (capitalized, no extension) | `sim build`, on every build | What SimFactory reads at run/submit time for *this* configuration |
+| Per-**simulation** copies | `<simdir>/SIMFACTORY/run/{SubmitScript,RunScript}` | `sim create*`, which substitutes `@TOKENS@` and records the path as `Properties.submitscript` (`lib/simrestart.py`) | What `submit()` actually reads for *this* simulation, including later restarts |
+
+A change to `mdb/` therefore has to walk three levels before it takes effect, and **nothing
+warns you at any of them**:
+
+```
+mdb/<name>.sub  --sim build-->  configs/<cfg>/SubmitScript  --sim create*-->  <simdir>/SIMFACTORY/run/SubmitScript  --sim submit-->  <restartdir>/SIMFACTORY/SubmitScript
+```
+
+Edit the MDB and resubmit an existing simulation and you get the old behaviour silently.
+Rebuild (or `cp` the file into `configs/<cfg>/`) to fix the *configuration*; an
+already-created simulation keeps its own copy, so that one needs a new simulation or an
+edit to the copy in `<simdir>/SIMFACTORY/run/`. Diff the levels whenever an MDB change
+appears to have been ignored.
 
 ### If you configured with `gmake` instead of `sim build`
 
@@ -111,6 +125,91 @@ Practical consequences:
 - A stale `~/.hostname` pointing at a machine whose `sourcebasedir` no longer exists makes
   resolution fail from a perfectly good checkout. Confirm with the user before deleting
   it — other machines may depend on it.
+
+---
+
+## Heterogeneous clusters — one machine entry per partition
+
+On many clusters each partition is a different machine: different CPU, core count and
+memory. A single entry can be stretched with `--queue`, `--ppn`, `--num-threads` and the
+generic `--mdbkey KEY VALUE` on every submit, but it cannot vary the **optionlist**,
+which is baked into the configuration at build time. Give each partition its own entry
+and its own optionlist.
+
+An optionlist carrying the build host's ISA (`-mavx512f` and friends) will SIGILL on a
+partition with older or AMD CPUs, so that partition needs a separate build as well as a
+separate entry.
+
+**Measure the hardware on the partition you will run on, not on the head node.**
+`sim setup`/`setup-silent` shell out to `lscpu` on whatever host you run them from and
+write `ppn`, `max-num-threads` and `num-threads` from `Socket(s) × Core(s) per socket`
+(`lib/simdt.py`). Run from the login node, those describe the login node. `lscpu` reports
+no memory at all, so `memory` is never auto-generated — take it from `free -m`,
+`/proc/meminfo`, or the scheduler (`scontrol show node <n>` on Slurm).
+
+### Does `aliaspattern` matter inside a job?
+
+Usually not, and it is worth knowing why before debugging the wrong thing. 34 of the 37
+shipped submit templates end by calling
+
+```
+@SIMFACTORY@ run @SIMULATION_NAME@ ... --machine=@MACHINE@ ...
+```
+
+`@MACHINE@` is substituted at `create` time from the machine resolved **on the submitting
+host**, and `GetMachineName()` returns a `--machine` option immediately without ever
+consulting `hostname` or `aliaspattern` (`lib/simlib.py`). So a job launched from one of
+those templates does not re-resolve the machine, and a pattern that matches only the head
+node will not break it. (`db.sub`, `db-sing-nv.sub` and `qbd.sub` omit the flag; on those
+it does re-resolve.)
+
+`aliaspattern` *is* consulted every time you run `sim` by hand on a compute node — an
+interactive `srun`/`salloc` shell, or building inside a job — where it fails like this:
+
+```
+head node:         Current machine: rostam
+inside the queue:  Warning: Unknown machine name medusa00.example.edu
+                   Current machine: None
+```
+
+Make the pattern cover the compute nodes anyway, keeping entries distinguishable (by
+disjoint patterns, or by the `sourcebasedir` tiebreak described under *Machine
+resolution* above). On Slurm, check it where it has to work:
+
+```bash
+srun -p <partition> -N1 -n1 --pty ./simfactory/bin/sim whoami
+```
+
+---
+
+## `allocation` is required, and a placeholder can be a silent no-op
+
+`allocation` is one of three keys `GetLocalEnvironment()` requires, alongside `user` and
+`sourcebasedir`; a missing one is `fatal: machine <name> is missing a required key`
+(`lib/simlib.py`). You cannot remove it — only change where it comes from.
+
+`sim setup-silent` writes `allocation = NO_ALLOCATION` into the **`[default]` section** of
+`etc/defs.local.ini` (`lib/dt/defaults-silent.ini`), and `[default]` keys propagate into
+every machine entry that lacks them. That is why deleting `allocation` from an `.ini`
+appears to work. Many shipped entries hardcode the same placeholder.
+
+Where the entry's submit script also has `#SBATCH --account=@ALLOCATION@`, the placeholder
+reaches Slurm. On a cluster where accounting is configured but not enforced, Slurm
+**ignores the unknown account and charges the user's default association** — the job runs
+and the entry looks correct. Per the Slurm documentation the identical line is a submit
+failure (`Invalid account or account/partition combination specified`) wherever
+`AccountingStorageEnforce=associations` is set, so a directive that does nothing at one
+site breaks the entry at another.
+
+Check what the job charged rather than that it ran:
+
+```bash
+sacct -j <jobid> -o JobID,Account,State,ExitCode
+```
+
+On a cluster with no accounting, remove the `--account` line from the machine's submit
+script; leave the key alone. Sites that do need an account set `allocation` in
+`etc/defs.local.ini` or pass `--allocation`, which requires the line to be present.
 
 ---
 
@@ -193,7 +292,7 @@ uses that variable in place of its own default. Your runscript therefore runs fo
 ```
 
 > A scheduler reporting success does not mean the run succeeded. Check the job's `.err`
-> for `Illegal instruction` / `Caught signal`, and check that expected output files were
-> actually produced. On a heterogeneous cluster, a binary compiled with the login node's
-> ISA (`-mavx512f`, say) will SIGILL on a partition with older CPUs — pin the submit
-> partition to CPUs matching the build host.
+> for `Illegal instruction` / `Caught signal`, check that expected output files were
+> actually produced, and check `sacct -j <jobid>` if the entry names an allocation.
+> On a cluster whose partitions differ, see
+> [Heterogeneous clusters](#heterogeneous-clusters--one-machine-entry-per-partition).
