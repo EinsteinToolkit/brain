@@ -57,7 +57,7 @@ fix is to delete the file and re-run `sim setup-silent`, not to hand-edit it.
 |---|---|---|---|
 | Machine **template** | `mdb/machines/<name>.ini` + the optionlist/submitscript/runscript it names | You, by hand | The machine; shared by every configuration on it |
 | Per-**configuration** copies | `configs/<cfg>/{OptionList,SubmitScript,RunScript}` (capitalized, no extension) | `sim build`, on every build | What SimFactory reads at run/submit time for *this* configuration |
-| Per-**simulation** copies | `<simdir>/SIMFACTORY/run/{SubmitScript,RunScript}` | `sim create*`, which substitutes `@TOKENS@` and records the path as `Properties.submitscript` (`lib/simrestart.py`) | What `submit()` actually reads for *this* simulation, including later restarts |
+| Per-**simulation** copies | `<simdir>/SIMFACTORY/run/{SubmitScript,RunScript}` | `sim create*`, recording the path as `Properties.submitscript` (`lib/simrestart.py`) | What `submit()` actually reads for *this* simulation, including later restarts. Still holds its `@TOKENS@`; they are substituted into `<restartdir>/SIMFACTORY/` at submit time |
 
 A change to `mdb/` therefore has to walk three levels before it takes effect, and **nothing
 warns you at any of them**:
